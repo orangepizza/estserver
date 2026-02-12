@@ -20,6 +20,7 @@ func RegisterEchoHandlers(svcHandler ServiceHandler, e *echo.Echo) {
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
+		c.Response().Header().Set("Content-Transfer-Encoding", "base64")
 		return c.Blob(200, "application/pkcs7-mime", certs)
 	})
 	e.POST("/.well-known/est/simpleenroll", func(c echo.Context) error {
@@ -38,7 +39,13 @@ func RegisterEchoHandlers(svcHandler ServiceHandler, e *echo.Echo) {
 			}
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
-		return c.Blob(http.StatusCreated, "application/pkcs7-mime", bytes)
+		c.Response().Header().Set("Content-Transfer-Encoding", "base64")
+		if c.Request().UserAgent() == "fioconfig-client/2" {
+			// Older versions of fioconfig are requiring status code 201 and were not ignoring an optional `smime-type` extension.
+			// Thus, we have to return whatever it expects for backward compatibility with devices already deployed.
+			return c.Blob(http.StatusCreated, "application/pkcs7-mime", bytes)
+		}
+		return c.Blob(http.StatusOK, "application/pkcs7-mime; smime-type=certs-only", bytes)
 	})
 	e.POST("/.well-known/est/simplereenroll", func(c echo.Context) error {
 		svc, err := svcHandler.GetService(c.Request().Context(), c.Request().TLS.ServerName)
@@ -57,7 +64,13 @@ func RegisterEchoHandlers(svcHandler ServiceHandler, e *echo.Echo) {
 			}
 			return c.String(http.StatusInternalServerError, err.Error())
 		}
-		return c.Blob(http.StatusCreated, "application/pkcs7-mime", bytes)
+		c.Response().Header().Set("Content-Transfer-Encoding", "base64")
+		if c.Request().UserAgent() == "fioconfig-client/2" {
+			// Older versions of fioconfig are requiring status code 201 and were not ignoring an optional `smime-type` extension.
+			// Thus, we have to return whatever it expects for backward compatibility with devices already deployed.
+			return c.Blob(http.StatusCreated, "application/pkcs7-mime", bytes)
+		}
+		return c.Blob(http.StatusOK, "application/pkcs7-mime; smime-type=certs-only", bytes)
 	})
 
 }
