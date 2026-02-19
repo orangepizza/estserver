@@ -130,6 +130,8 @@ func TestService_signCsr(t *testing.T) {
 	require.Nil(t, err)
 	cert := p7.Certificates[0]
 	require.Equal(t, cn, cert.Subject.CommonName)
+	certpub := cert.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, certpub.Equal(key.Public()), "cert have different public key from request CSR")
 
 	// X509 Key usage must be: DigitalSignature
 	csr.Extensions[0].Value = []byte{3, 2, 7, 120}
