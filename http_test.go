@@ -126,13 +126,14 @@ func TestSimpleEnrollRequiresValidCert(t *testing.T) {
 
 		kp := svc.createTlsKP(t, tc.ctx, "enrollRequiresValid")
 
-		url := tc.srv.URL + ".well-known/est/simpleenroll"
+		url := tc.srv.URL + "/.well-known/est/simpleenroll"
 		client := tc.srv.Client()
 		transport := client.Transport.(*http.Transport)
 		transport.TLSClientConfig.Certificates = []tls.Certificate{*kp}
 
-		_, err := client.Post(url, "application/pkcs10", bytes.NewBuffer([]byte{}))
-		require.NotNil(t, err)
+		res, err := client.Post(url, "application/pkcs10", bytes.NewBuffer([]byte{}))
+		require.GreaterOrEqual(t, res.StatusCode, 400, "Server accepted invalid")
+		require.Nil(t, err)
 	})
 }
 
