@@ -71,7 +71,7 @@ func createService(t *testing.T) Service {
 	cert, err := x509.ParseCertificate(der)
 	require.Nil(t, err)
 
-	return Service{[]*x509.Certificate{cert}, cert, key, time.Hour * 24}
+	return Service{[]*x509.Certificate{cert}, cert, key, true, time.Hour * 24}
 }
 
 func TestService_CA(t *testing.T) {
@@ -118,7 +118,7 @@ func TestService_signCsr(t *testing.T) {
 
 	cn := random.String(12)
 	s := createService(t)
-	_, csrBytes := createB64CsrDer(t, cn)
+	key, csrBytes := createB64CsrDer(t, cn)
 	csr, err := s.loadCsr(ctx, csrBytes)
 	require.Nil(t, err)
 
@@ -130,6 +130,8 @@ func TestService_signCsr(t *testing.T) {
 	require.Nil(t, err)
 	cert := p7.Certificates[0]
 	require.Equal(t, cn, cert.Subject.CommonName)
+	certpub := cert.PublicKey.(*ecdsa.PublicKey)
+	require.True(t, certpub.Equal(key.Public()), "cert have different public key from request CSR")
 
 	// X509 Key usage must be: DigitalSignature
 	csr.Extensions[0].Value = []byte{3, 2, 7, 120}
@@ -195,4 +197,31 @@ func TestService_ReEnroll(t *testing.T) {
 	require.Nil(t, err)
 	cert := p7.Certificates[0]
 	require.Equal(t, cn, cert.Subject.CommonName)
+}
+
+func TestService_ServerKeygen(t *testing.T) {
+	log := InitLogger("")
+	ctx := CtxWithLog(context.TODO(), log)
+
+	s := createService(t)
+	cn := random.String(12)
+	_, csrBytes := createB64CsrDer(t, cn)
+	bytes, key, err := s.ServerKeygen(ctx, csrBytes, nil)
+	require.Nil(t, err)
+	require.NotNil(t, key)
+
+	bytes, err = base64.StdEncoding.DecodeString(string(bytes))
+	require.Nil(t, err)
+	p7, err := pkcs7.Parse(bytes)
+	require.Nil(t, err)
+	cert := p7.Certificates[0]
+	require.Equal(t, cn, cert.Subject.CommonName)
+	key, err = base64.StdEncoding.DecodeString(string(key))
+	require.Nil(t, err)
+	_, err = x509.ParsePKCS8PrivateKey(key)
+	require.Nil(t, err)
+
+	s.allowServerKeygen = false
+	_, _, err = s.ServerKeygen(ctx, csrBytes, nil)
+	require.NotNil(t, err)
 }
