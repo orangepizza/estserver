@@ -7,7 +7,7 @@ require (
 	github.com/labstack/gommon v0.4.2
 	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.11.1
-	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
+	go.mozilla.org/pkcs7 v0.9.0
 )
 
 require (
